@@ -1,0 +1,108 @@
+#!/bin/bash
+
+if [ ${#} -ne 3 ]; then
+	echo "wrong number of arguments" 1>&2
+	exit 1
+fi
+
+if [ ! -r ${1} ]; then
+	echo "file not exist or no read permission" 1>&2
+	exit 1
+fi
+
+if [ ! -x ${2} ]; then
+	echo "file not exist or no execute permission" 1>&2
+	exit 1
+fi
+
+if [ ! -x ${3} ]; then
+	echo "file not exist or no execute permission" 1>&2
+	exit 1
+fi
+
+exit_num=0
+for testing in $(cat ${1}); do
+	temp1=$(mktemp)
+	temp2=$(mktemp)
+	if [ -r ${testing}.args -a -r ${testing}.in ]; then
+		${2} $(cat ${testing}.args) < ${testing}.in > ${temp1}
+		${3} $(cat ${testing}.args) < ${testing}.in > ${temp2}
+		diff ${temp1} ${temp2} > /dev/null
+	       	if [ ${?} -ne 0 ]; then
+                        echo "Test failed: ${testing}"
+                        echo "Args:"
+                        cat ${testing}.args
+                        echo "Input:"
+                        cat ${testing}.in
+                        echo "Expected:"
+                        cat ${temp2}
+                        echo "Actual:"
+                        cat ${temp1}
+		fi
+	elif [ -r ${testing}.args -a ! -r ${testing}.in ]; then
+		if [ -e ${testing}.in ]; then
+			echo "The ${testing}.in exists but not readable" 1>&2
+			exit_num=1
+			continue
+		fi
+		${2} $(cat ${testing}.args) > ${temp1}
+                ${3} $(cat ${testing}.args) > ${temp2}
+		diff ${temp1} ${temp2} > /dev/null
+		if [ ${?} -ne 0 ]; then
+			echo "Test failed: ${testing}"
+			echo "Args:"
+			cat ${testing}.args
+			echo "Input:"
+			echo "Expected:"
+			cat ${temp2}
+			echo "Actual:"
+			cat ${temp1}
+		fi
+	elif [ ! -r ${tesing}.args -a -r ${testing}.in ]; then
+		if [ -e ${testing}.args ]; then
+			echo "The ${testing}.arg exists but not readable" 1>&2
+			exit_num=1
+			continue
+		fi
+		${2} < ${testing}.in > ${temp1}
+		${3} < ${testing}.in > ${temp2}
+		diff ${temp1} ${temp2} > /dev/null
+                if [ ${?} -ne 0 ]; then
+                        echo "Test failed: ${testing}"
+                        echo "Args:"
+                        echo "Input:"
+			cat ${testing}.in
+                        echo "Expected:"
+                        cat ${temp2}
+                        echo "Actual:"
+                        cat ${temp1}
+                fi
+	elif [ ! -r ${testing}.args -a ! -r ${testing}.in ]; then
+		if [ -e ${testing}.args ]; then
+			echo "The ${testing}.arg exists but not readable" 1>&2
+			exit_num=1
+			continue
+		fi
+		if [ -e ${testing}.in ]; then
+			echo "The ${testing}.in exists but not readable" 1>&2
+			exit_num=1
+			continue
+		fi
+		${2} > ${temp1}
+		${3} > ${temp2}
+
+		diff ${temp1} ${temp2} > /dev/null
+                if [ ${?} -ne 0 ]; then
+                        echo "Test failed: ${testing}"
+                        echo "Args:"
+                        echo "Input:"
+                        echo "Expected:"
+                        cat ${temp2}
+                        echo "Actual:"
+                        cat ${temp1}
+                fi
+	fi
+	rm ${temp1}
+	rm ${temp2}
+done
+exit ${exit_num}
